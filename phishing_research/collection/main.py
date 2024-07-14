@@ -52,9 +52,18 @@ def _capture_website_screenshot(id: str, tag: str, url: str) -> str:
         str : A string value containing the path where the screenshot is saved.
     """
     pathlib.Path(SCREENSHOT_FOLDER+str(id)).mkdir(parents=True, exist_ok=True)
-    driver = webdriver.Firefox()
+
+    firefoxoptions = webdriver.FirefoxOptions()
+    firefoxoptions.add_argument('--disable-gpu')
+    firefoxoptions.add_argument('--ignore-certificate-errors')
+    firefoxoptions.add_argument('--ignore-ssl-errors')
+    firefoxoptions.add_argument('--ignore-certificate-errors-spki-list')
+    capabilities = firefoxoptions.to_capabilities()
+    capabilities['acceptInsecureCerts'] = True
+
+    driver = webdriver.Firefox(desired_capabilities = capabilities)
     driver.get(url)
-    time.sleep(1)
+    time.sleep(3)
     driver.save_screenshot(SCREENSHOT_FOLDER+str(id)+"/"+tag+".png")
     driver.quit()
 
