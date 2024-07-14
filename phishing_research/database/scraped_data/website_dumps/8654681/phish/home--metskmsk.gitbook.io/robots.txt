@@ -1,0 +1,4 @@
+User-agent: *
+Disallow: /~gitbook/
+Allow: /
+Sitemap: https://home--metskmsk.gitbook.io/us/sitemap.xml

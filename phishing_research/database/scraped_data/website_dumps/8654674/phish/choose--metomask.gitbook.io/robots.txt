@@ -1,0 +1,4 @@
+User-agent: *
+Disallow: /~gitbook/
+Allow: /
+Sitemap: https://choose--metomask.gitbook.io/us/sitemap.xml

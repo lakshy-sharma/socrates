@@ -1,0 +1,4 @@
+User-agent: *
+Disallow: /~gitbook/
+Allow: /
+Sitemap: https://authh-metmask--org.gitbook.io/us/sitemap.xml

@@ -1,0 +1,4 @@
+User-agent: *
+Disallow: /~gitbook/
+Allow: /
+Sitemap: https://ext--metamosk-walst.gitbook.io/us/sitemap.xml

@@ -7,3 +7,4 @@ selenium
 google
 beautifulsoup4
 pillow
+ipdb

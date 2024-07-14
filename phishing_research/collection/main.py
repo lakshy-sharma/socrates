@@ -7,15 +7,8 @@ import time
 import logging
 import pandas as pd
 import requests
-import nltk
-nltk.download('stopwords')
-nltk.download('punkt')
-from rake_nltk import Rake
 from selenium import webdriver
-from PIL import Image
 from googlesearch import search
-from bs4 import BeautifulSoup
-
 
 MASTER_DATA_FOLDER = "../database/"
 SCRAPED_DATA_FOLDER = "scraped_data/"
@@ -23,7 +16,17 @@ EXTERNAL_DATASETS = "external_dataset/"
 SCREENSHOT_FOLDER = MASTER_DATA_FOLDER + SCRAPED_DATA_FOLDER + "screenshots/"
 WEBSITE_FOLDER = MASTER_DATA_FOLDER + SCRAPED_DATA_FOLDER + "website_dumps/"
 
-extracted_db = pd.DataFrame(columns=["id", "url","target", "verified", "phish_pic_path", "target_pic_path", "phish_dump_path", "target_dump_path", "phish_keywords"])
+extracted_db = pd.DataFrame(columns=[
+    "id", 
+    "url",
+    "target", 
+    "phish_verified", 
+    "phish_pic_path", 
+    "target_pic_path", 
+    "phish_dump_path", 
+    "target_dump_path", 
+    ]
+)
 
 def _perform_google_search(search_term: str) -> str:
     """
@@ -34,11 +37,11 @@ def _perform_google_search(search_term: str) -> str:
     Returns:
         str: This string is the URL of top result from google.
     """
-    print("Perform a Google Search.")
+    top_search_result = ""
+    print(search_term)
     for i in search(search_term, num=1, stop=1):
         top_search_result = i
-        return top_search_result
-    return ""
+    return top_search_result
 
 def _capture_website_screenshot(id: str, tag: str, url: str) -> str:
     """
@@ -55,35 +58,19 @@ def _capture_website_screenshot(id: str, tag: str, url: str) -> str:
 
     firefoxOptions = webdriver.FirefoxOptions()
     firefoxOptions.accept_insecure_certs = True
-
     driver = webdriver.Firefox(options=firefoxOptions)
-    driver.get(url)
     driver.implicitly_wait(10)
     driver.set_page_load_timeout(5)
-    driver.save_screenshot(SCREENSHOT_FOLDER+str(id)+"/"+tag+".png")
+    try:
+        driver.get(url)
+        driver.save_screenshot(SCREENSHOT_FOLDER+str(id)+"/"+tag+".png")
+        driver.close()
+        driver.quit()
+    except:
+        driver.close()
+        driver.quit()
 
-    driver.close()
-    driver.quit()
-    
     return SCREENSHOT_FOLDER+str(id)+"/"+tag+".png"
-
-def _discover_keywords(url: str) -> list:
-    """
-    This function is used for discovering the keywords inside the phishing website.
-
-    Args:
-        url (str): A URL containing the phishing website link.
-    Returns:
-        list: A list of all keywords contained inside the phishing website.
-    """
-    rake_analyser = Rake()
-    soup = BeautifulSoup(requests.get(url).text, 'html.parser')
-    text =  soup.findAll(string=True)
-    visible_words = " ".join(t.strip() for t in text)
-    rake_analyser.extract_keywords_from_text(visible_words)
-    keywords = rake_analyser.get_ranked_phrases()
-
-    return keywords
 
 def _download_website(id: str, tag: str, url: str) -> str:
     """
@@ -98,7 +85,7 @@ def _download_website(id: str, tag: str, url: str) -> str:
     """
     save_location = WEBSITE_FOLDER+str(id)+"/"+tag+"/"
     pathlib.Path(save_location).mkdir(parents=True, exist_ok=True)    
-    subprocess.run(["wget","--max-redirect", "200",  "-p", "--convert-links",url, "-P", save_location])
+    subprocess.run(["wget","--max-redirect", "200",  "-p", "--convert-links",url, "-P", save_location], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
     return save_location
 
 def scrape_urls() -> None:
@@ -116,28 +103,25 @@ def scrape_urls() -> None:
     # Some field values can be directly copied over.
     extracted_db["url"] = phishtank_dataset["url"]
     extracted_db["target"] = phishtank_dataset["target"]
-    extracted_db["verified"] = phishtank_dataset["verified"]
+    extracted_db["phish_verified"] = phishtank_dataset["verified"]
     extracted_db["id"] = phishtank_dataset["phish_id"]
     extracted_db["dataset"] = "phishtank"
 
     for index, row in phishtank_dataset.iterrows():
-        extracted_db.loc[extracted_db["id"] == row["phish_id"]]["phish_pic_path"] = _capture_website_screenshot(id=row["phish_id"],tag="phish", url=row["url"])
-        extracted_db.loc[extracted_db["id"] == row["phish_id"]]["phish_dump_path"] = _download_website(id=row["phish_id"],tag="phish", url=row["url"])
-        phish_keywords = _discover_keywords(url=row["url"])
-        extracted_db.loc[extracted_db["id"] == row["phish_id"]]["phish_keywords"] = phish_keywords
+        extracted_db.loc[extracted_db["id"] == row["phish_id"], 'phish_pic_path'] = _capture_website_screenshot(id=row["phish_id"],tag="phish", url=row["url"])
+        extracted_db.loc[extracted_db["id"] == row["phish_id"], 'phish_dump_path'] = _download_website(id=row["phish_id"],tag="phish", url=row["url"])
 
+        top_url = ""
         if row["target"] != "Other":
             top_url = _perform_google_search(row["target"])
-        else:
-            top_url = _perform_google_search(search_term=" ".join(phish_keywords[:3]))
 
         # Download the website and capture a screenshot.
         if top_url != "":
-            extracted_db.loc[extracted_db["id"] == row["phish_id"]]["target_pic_path"] = _capture_website_screenshot(id=row["phish_id"],tag="target", url=top_url)
-            extracted_db.loc[extracted_db["id"] == row["phish_id"]]["target_dump_path"] = _download_website(id=row["phish_id"],tag="target", url=top_url)
+            extracted_db.loc[extracted_db["id"] == row["phish_id"], 'target_pic_path'] = _capture_website_screenshot(id=row["phish_id"],tag="target", url=top_url)
+            extracted_db.loc[extracted_db["id"] == row["phish_id"], 'target_dump_path'] = _download_website(id=row["phish_id"],tag="target", url=top_url)
         else:
-            extracted_db.loc[extracted_db["id"] == row["phish_id"]]["target_pic_path"] = None
-            extracted_db.loc[extracted_db["id"] == row["phish_id"]]["target_dump_path"] = None
+            extracted_db.loc[extracted_db["id"] == row["phish_id"], 'target_pic_path'] = ""
+            extracted_db.loc[extracted_db["id"] == row["phish_id"], 'target_dump_path'] = ""
 
     return None
 
@@ -192,18 +176,14 @@ def export_database() -> None:
         None
     """
     logging.info("Exporting Extracted Database for Analysis.")
-    extracted_db.to_csv("../database/extracted_db.csv")
+    extracted_db.to_csv(MASTER_DATA_FOLDER + "extracted_db.csv")
 
 def main() -> None:
     truncate_processed_database()
     refresh_datasets()
-    try:
-        scrape_urls()
-    except Exception as error:
-        print(error)
-        export_database()
-    finally:
-        export_database()
+    scrape_urls()
+    export_database()
+    return None
 
 if __name__ == "__main__":
     main()
