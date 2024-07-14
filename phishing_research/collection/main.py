@@ -37,7 +37,8 @@ def _perform_google_search(search_term: str) -> str:
     print("Perform a Google Search.")
     for i in search(search_term, num=1, stop=1):
         top_search_result = i
-    return top_search_result
+        return top_search_result
+    return ""
 
 def _capture_website_screenshot(id: str, tag: str, url: str) -> str:
     """
@@ -53,8 +54,9 @@ def _capture_website_screenshot(id: str, tag: str, url: str) -> str:
     pathlib.Path(SCREENSHOT_FOLDER+str(id)).mkdir(parents=True, exist_ok=True)
     driver = webdriver.Firefox()
     driver.get(url)
-    time.sleep(2)
+    time.sleep(1)
     driver.save_screenshot(SCREENSHOT_FOLDER+str(id)+"/"+tag+".png")
+    driver.quit()
 
     return SCREENSHOT_FOLDER+str(id)+"/"+tag+".png"
 
@@ -122,8 +124,12 @@ def scrape_urls() -> None:
             keywords = _discover_keywords(url=row["url"])
             top_url = _perform_google_search(search_term=" ".join(keywords[:1]))
 
-        extracted_db.loc[extracted_db["id"] == row["phish_id"]]["target_pic_path"] = _capture_website_screenshot(id=row["phish_id"],tag="target", url=top_url)
-        extracted_db.loc[extracted_db["id"] == row["phish_id"]]["target_dump_path"] = _download_website(id=row["phish_id"],tag="target", url=top_url)            
+        if top_url != "":
+            extracted_db.loc[extracted_db["id"] == row["phish_id"]]["target_pic_path"] = _capture_website_screenshot(id=row["phish_id"],tag="target", url=top_url)
+            extracted_db.loc[extracted_db["id"] == row["phish_id"]]["target_dump_path"] = _download_website(id=row["phish_id"],tag="target", url=top_url)
+        else:
+            extracted_db.loc[extracted_db["id"] == row["phish_id"]]["target_pic_path"] = None
+            extracted_db.loc[extracted_db["id"] == row["phish_id"]]["target_dump_path"] = None
 
     return None
 
