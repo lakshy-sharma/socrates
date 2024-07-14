@@ -53,20 +53,18 @@ def _capture_website_screenshot(id: str, tag: str, url: str) -> str:
     """
     pathlib.Path(SCREENSHOT_FOLDER+str(id)).mkdir(parents=True, exist_ok=True)
 
-    firefoxoptions = webdriver.FirefoxOptions()
-    firefoxoptions.add_argument('--disable-gpu')
-    firefoxoptions.add_argument('--ignore-certificate-errors')
-    firefoxoptions.add_argument('--ignore-ssl-errors')
-    firefoxoptions.add_argument('--ignore-certificate-errors-spki-list')
-    capabilities = firefoxoptions.to_capabilities()
-    capabilities['acceptInsecureCerts'] = True
+    firefoxOptions = webdriver.FirefoxOptions()
+    firefoxOptions.accept_insecure_certs = True
 
-    driver = webdriver.Firefox(desired_capabilities = capabilities)
+    driver = webdriver.Firefox(options=firefoxOptions)
     driver.get(url)
-    time.sleep(3)
+    driver.implicitly_wait(10)
+    driver.set_page_load_timeout(5)
     driver.save_screenshot(SCREENSHOT_FOLDER+str(id)+"/"+tag+".png")
-    driver.quit()
 
+    driver.close()
+    driver.quit()
+    
     return SCREENSHOT_FOLDER+str(id)+"/"+tag+".png"
 
 def _discover_keywords(url: str) -> list:
@@ -126,12 +124,12 @@ def scrape_urls() -> None:
         extracted_db.loc[extracted_db["id"] == row["phish_id"]]["phish_pic_path"] = _capture_website_screenshot(id=row["phish_id"],tag="phish", url=row["url"])
         extracted_db.loc[extracted_db["id"] == row["phish_id"]]["phish_dump_path"] = _download_website(id=row["phish_id"],tag="phish", url=row["url"])
         phish_keywords = _discover_keywords(url=row["url"])
-        extracted_db.loc[extracted_db["id"] == row["phish_id"]]["phish_keywords"] = keywords
+        extracted_db.loc[extracted_db["id"] == row["phish_id"]]["phish_keywords"] = phish_keywords
 
         if row["target"] != "Other":
             top_url = _perform_google_search(row["target"])
         else:
-            top_url = _perform_google_search(search_term=" ".join(keywords[:3]))
+            top_url = _perform_google_search(search_term=" ".join(phish_keywords[:3]))
 
         # Download the website and capture a screenshot.
         if top_url != "":
