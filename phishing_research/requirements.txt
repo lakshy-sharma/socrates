@@ -1,0 +1,9 @@
+pandas
+numpy
+requests
+nltk
+rake_nltk
+selenium
+google
+beautifulsoup4
+pillow
