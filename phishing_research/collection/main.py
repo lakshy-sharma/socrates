@@ -23,7 +23,7 @@ EXTERNAL_DATASETS = "external_dataset/"
 SCREENSHOT_FOLDER = MASTER_DATA_FOLDER + SCRAPED_DATA_FOLDER + "screenshots/"
 WEBSITE_FOLDER = MASTER_DATA_FOLDER + SCRAPED_DATA_FOLDER + "website_dumps/"
 
-extracted_db = pd.DataFrame(columns=["id", "url","target", "verified", "phish_pic_path", "target_pic_path", "phish_dump_path", "target_dump_path"])
+extracted_db = pd.DataFrame(columns=["id", "url","target", "verified", "phish_pic_path", "target_pic_path", "phish_dump_path", "target_dump_path", "phish_keywords"])
 
 def _perform_google_search(search_term: str) -> str:
     """
@@ -116,14 +116,15 @@ def scrape_urls() -> None:
     for index, row in phishtank_dataset.iterrows():
         extracted_db.loc[extracted_db["id"] == row["phish_id"]]["phish_pic_path"] = _capture_website_screenshot(id=row["phish_id"],tag="phish", url=row["url"])
         extracted_db.loc[extracted_db["id"] == row["phish_id"]]["phish_dump_path"] = _download_website(id=row["phish_id"],tag="phish", url=row["url"])
+        phish_keywords = _discover_keywords(url=row["url"])
+        extracted_db.loc[extracted_db["id"] == row["phish_id"]]["phish_keywords"] = keywords
 
         if row["target"] != "Other":
             top_url = _perform_google_search(row["target"])
         else:
-            # Find out most common words used in the phishing website then search those terms.
-            keywords = _discover_keywords(url=row["url"])
-            top_url = _perform_google_search(search_term=" ".join(keywords[:1]))
+            top_url = _perform_google_search(search_term=" ".join(keywords[:3]))
 
+        # Download the website and capture a screenshot.
         if top_url != "":
             extracted_db.loc[extracted_db["id"] == row["phish_id"]]["target_pic_path"] = _capture_website_screenshot(id=row["phish_id"],tag="target", url=top_url)
             extracted_db.loc[extracted_db["id"] == row["phish_id"]]["target_dump_path"] = _download_website(id=row["phish_id"],tag="target", url=top_url)
@@ -189,8 +190,13 @@ def export_database() -> None:
 def main() -> None:
     truncate_processed_database()
     refresh_datasets()
-    scrape_urls()
-    export_database()
+    try:
+        scrape_urls()
+    except Exception as error:
+        print(error)
+        export_database()
+    finally:
+        export_database()
 
 if __name__ == "__main__":
     main()
