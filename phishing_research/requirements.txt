@@ -8,3 +8,6 @@ google
 beautifulsoup4
 pillow
 ipdb
+scikit-learn
+scipy
+ucimlrepo
